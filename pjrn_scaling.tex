@@ -1,0 +1,44 @@
+\documentclass{article}
+\usepackage{amsmath}
+
+\begin{document}
+	
+\section{Projected Jacobian Rows Normalization}
+
+Sagliano et al provide a variation of JRN called Projected Jacobian Rows Normalization (PJRN). The defining equations for this scheme are
+\begin{align*}
+	elem_{i,i}K^{-1}_X &= X^{U}_i - X^{L}_i \\
+	elem_{i,i}K^{-1}_F &= ||row_{i}(\nabla F \cdot K^{-1}_X)|| \\
+	elem_{i,i}K^{-1}_G &= ||row_{i}(\nabla G \cdot K^{-1}_X)||
+\end{align*}
+where $elem_{i,i}(.)$ extracts the element at the $i$th row and $i$th column of the given matrix, and $row_{i}(.)$ extracts the entire $i$th row. The scale matrices $K_X$, $K_F$, $K_G$ are diagonal matrices, so only the diagonal entries are defined explicitly above, and the elements of these matrices are simply the reciprocals of the corresponding elements in their respective inverses. Note also the dimensions of these objects:
+\begin{align*}
+	dimK_X &= N \times N \\
+	dimK_F &= n_sn \times n_sn \\
+	dimK_G &= n_gn \times n_gn
+\end{align*}
+Here, $N = dimX_{NLP}$, $n_s$ is the number of continuous state variables, $n_g$ is the number of continuous path constraints, and $n$ is the number of collocation nodes per trajectory.
+
+The appropriate OpenMDAO reference value for the continuous state variable $var$ is given by
+\begin{align*}
+	ref_{var} &= elem_{k,k}K^{-1}_X \\
+	&= var^U - var^L \\
+	&= rng(var)
+\end{align*}
+where $k$ is \textit{any} index such that $elem_{k}X_{NLP}$ is part of the discretization of $var$. Note that regardless of such $k$ the $ref$ value is the same, since every part of the discretization of $var$ is scaled the same as $var$ itself. The variable range $rng(var)$ is easily retrievable in code, so no discussion of the programmatic derivation of the $ref$ value is needed.
+
+The defect and path constraint $refs$, however, are a different story. Considerable work must be done to write the formulae defining $K_F$,$K_G$ in a way that reveals what code elements correspond to what inputs into the formulae as well as how the output matrices correspond to the $ref$ values required. To give a preview of the answers, the $refs$ are given by
+\begin{align*}
+	ref_{F[var,nd]} &= elem_{i_F(var,nd),i_F(var,nd)}K^{-1}_F \\
+	&= ||row_{i_F(var,nd)}(\nabla F \cdot K^{-1}_X)|| \\
+	&= ||(row_{i_F(var,nd)}\nabla F) \cdot K^{-1}_X|| \\
+	&= ||\partial_X f_{var_{nd}} \cdot K^{-1}_X|| \\
+	&= [\sum_{x \in X}(\partial_x f_{var_{nd}} \cdot rng(x))^2]^{1/2} \\
+	&= [\sum_{v \in \text{OCPVars}}(rng^2(v)\sum_{nodes}(\partial_v f_{var_{nd}})^2)]^{1/2}
+\end{align*}
+where the partial terms are easily retrieved programmatically from the total jacobian information as follows:
+\begin{align*}
+	\partial_v f_{var_{nd}} @\,v\,\text{node}\,m &= \text{jac[var,v][nd][m]}
+\end{align*}
+
+\end{document}

@@ -1,0 +1,169 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+
+\title{A Primer on Scaling for Multi-Disciplinary Optimization in OpenMDAO and Dymos}
+\author{Harvey Weyandt}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+
+\newpage
+\section{Scaling Fundamentals}
+
+\addcontentsline{toc}{subsection}{What scaling is and why we do it}
+\subsection*{What scaling is and why we do it}
+
+\textbf{Problem scaling}---or simply \textbf{scaling}, when understood to be with respect to a problem---is the act of transforming one optimization problem into another by applying transformations to its variables (e.g. design variables, design parameters, constraint functions, objective functions) and rewriting the problem in terms of the transformed variables. 
+
+The problem transformation applied in the act of problem scaling is called a \textbf{problem scaling transformation}. The individual transformations applied to the problem variables during scaling are called \textbf{variable scaling transformations}, and the act of applying those is called \textbf{variable scaling}---or just \textbf{scaling}, when understood to be with respect to variables, not an entire problem. Scaling transformations of problems and variables can simply be called \textbf{scaling transformations} when the context is clear. The inverses of scaling transformations, when they are available, are called \textbf{descaling transformations}, and applying such transformations to a scaled problem or its variables is called \textbf{descaling}.
+
+In the context of scaling one problem $P$ into a new problem $\hat{P}$, the original problem $P$ is called the \textbf{unscaled problem} while the new problem $\hat{P}$ is called the \textbf{scaled problem}. The variables of these problems are then dubbed ``unscaled'' and ``scaled'', respectively.
+\\
+
+\noindent
+Suppose we wanted to numerically solve a problem $P$ with some solution method implementation \texttt{M} that is given initial guess information $P_{guess}^*$. The convergence behavior we would observe while \texttt{M} runs is determined in part by the formulation of $P$. For example, if some problem variables are evaluated in units that are too large or too small relative to those of other variables, then operations between these variables may incur significant error in the numerical results, to such a degree that convergence is either egregiously slow, egregiously inaccurate, or impossible altogether. 
+
+The convergence issues in the above example may be circumvented by an informed (or lucky) choice of \texttt{M} and $P_{guess}^*$, but not always. Thus the best course of action in this case, if \texttt{M} and $P_{guess}^*$ are not to be questioned, is to reformulate $P$ in terms of new units, in such a way that the errors occurring in the execution of \texttt{M} are minimal and consequently the convergence behavior of \texttt{M} is optimal. Since changing the units of a variable amounts to applying a transformation to that variable, and problem scaling is precisely the application of transformations like these to the problem variables, this is another way of saying that the best course of action is to scale $P$ into a new problem $\hat{P}$ (particularly via changes in units). After applying the scaling transformation, $\hat{P}$ can then be solved to yield some optimum $\hat{x}^*$, which can be descaled to an optimum $x^*$ of $P$ by converting back to the old units.
+
+Therein lies the utility of scaling, in general. If we choose our scaling transformation just right, we can transform a ``poorly-scaled'' problem $P$, conducive of poor convergence, into a ``well-scaled'' problem $\hat{P}$, conducive of more desirable convergence (with respect to a given solution method implementation and some given initial guess information). The scaled solution to $\hat{P}$ can then be descaled to, hopefully, yield a close approximation to the unscaled solution of $P$.
+\\
+
+\noindent
+In summary, scaling provides an \textit{indirect} method for solving optimization problems. The method consists of the following three steps:
+\begin{enumerate}
+    \item \textit{Scale} problem $P$ into problem $\hat{P}$
+    \item \textit{Solve} $\hat{P}$ directly for scaled optimum $\hat{x}^*$
+    \item \textit{Descale} $\hat{x}^*$ to approximate unscaled optimum $x^*$
+\end{enumerate}
+
+\noindent
+The nice thing is that OpenMDAO does all of this automatically! All you need to do is tell it what scaling transformation to apply. This you do by specifying units, if desired, and setting reference values. (See Section ?? for details.)
+
+\addcontentsline{toc}{subsection}{Scaling transformations}
+\subsection*{Scaling Transformations}
+
+Recall that a problem scaling transformation $S$ transforms a problem $P$ into a new problem $\hat{P}$:
+\begin{align*}
+    S(P) = \hat{P}
+\end{align*}
+It does this by applying a set of variable scaling transformations to the variables of $P$. For each variable $v$ of $P$, the problem scaling transformation $S$ provides a variable scaling transformation $S_v$ to transform it into scaled variable $\hat{v}$ of $\hat{P}$:
+\begin{align*}
+    S_v(v) = \hat{v}
+\end{align*}
+If a variable $v$ is untouched by $S$, then $S_v$ is simply the identity transformation, so that $\hat{v} = S_v(v) = v$. \\
+
+\noindent
+While scaling transformations are defined above in a very general sense, specific types of transformations are most commonly used. The most significant and commonplace types are "linear" and "affine", as described below. \\
+
+\noindent \textit{Linear Scaling} \\
+
+\noindent
+$S$ is called \textbf{linear} if the variable transformations it defines are all linear maps---that is, if
+\begin{align*}
+    \hat{v} = S_v(v) = \alpha_v v
+\end{align*}
+for all $v$, where $\alpha_v$ is constant. \\
+
+\noindent
+The majority of unit changes encountered in scientific work are linear scaling transformations. For example, if our problem had a scalar state variable $x$ expressed in meters (m), then in units of millimeters (mm) it is $10^3x$, so the change from m to mm corresponds to a linear scaling transformation
+\begin{align*}
+    \hat{x} = S_x(x) = 10^3x
+\end{align*}
+
+
+\noindent \textit{Affine Scaling} \\
+
+\noindent
+Generalizing linear scaling to include possible "shifts" in variables leads to the notion of affine scaling. $S$ is called \textbf{affine} (pronounced "ay-fine") if the variable transformations it defines are all affine maps---that is, if
+\begin{align*}
+    \hat{v} = S_v(v) = \alpha_v v + \beta_v
+\end{align*}
+for all $v$, where $\alpha_v$,$\beta_v$ are constant. Note that if all $\beta_v = 0$, that means that $S$ is linear. All linear transformations are affine, but not all affine transformations are linear. \\
+
+\noindent
+Some unit conversions require affine transformations. For instance, converting a variable $T$ measured in degrees Celsius ($^{\circ}$C) to a new variable $\hat{T}$ measured in degrees Fahrenheit ($^{\circ}$F) requires the affine scaling transformation
+\begin{align*}
+    \hat{T} = S_T(T) = \frac{9}{5}T + 32
+\end{align*}
+
+\noindent
+More will be said about linear and affine scaling later, since those are the types of transformations that the OpenMDAO user interface currently supports. (See Section ?? for details.)
+
+\addcontentsline{toc}{subsection}{Rules of thumb}
+\subsection*{Rules of thumb}
+
+How do you know when a problem is poorly-scaled? How do you know that scaling the
+problem can yield sufficiently significant convergence benefits? And how do you know what scaling transformations to use to reap those benefits? These are all very difficult, nuanced questions to answer precisely, and various aspects of these questions are still open areas of study, but nonetheless a few rules of thumb have been observed to work well in most instances.
+
+\addcontentsline{toc}{subsection}{Words of warning}
+\subsection*{Words of warning}
+
+\newpage
+\section{Scaling in OpenMDAO}
+
+\addcontentsline{toc}{subsection}{Reference values}
+\subsection*{Reference values}
+
+Let $x$ be some scalar variable or constraint that we want to scale to $\hat{x}$. The OpenMDAO user interface supports transformations of the form
+\begin{align*}
+    \hat{x} = a x + b
+\end{align*}
+where $a,b$ are scalars specified prior to problem \texttt{setup()}. Thus, to scale a quantity in OpenMDAO, the two values $a,b$ must somehow be specified prior to problem \texttt{setup()}.
+
+There are two ways of doing this, one of which is deprecated. The deprecated method, which should \textit{not} be used and is maintained only for backwards compatibility purposes, is specifying a \texttt{scaler} and an \texttt{adder} for the quantity of interest. The other method, which should be used, is specifying \textit{reference values} \texttt{ref} and \texttt{ref0} for the quantity.
+
+The \texttt{ref} value for a variable is defined to be the value that scales to 1, and the \texttt{ref0} value is that which scales to 0.
+
+
+\addcontentsline{toc}{subsection}{Examples}
+\subsection*{Examples}
+
+\addcontentsline{toc}{subsection}{Under the hood}
+\subsection*{Under the hood}
+
+\newpage
+\section{Scaling in Dymos}
+
+\addcontentsline{toc}{subsection}{Defect constraint reference values}
+\subsection*{Defect constraint reference values}
+
+\addcontentsline{toc}{subsection}{Examples}
+\subsection*{Examples}
+
+\addcontentsline{toc}{subsection}{Under the hood}
+\subsection*{Under the hood}
+
+\newpage
+\section{Survey of Scaling Techniques}
+
+\addcontentsline{toc}{subsection}{Isoscaling}
+\subsection*{Isoscaling}
+
+\textbf{Isoscaling} is the simplest way to scale dynamically-constrained optimization problems. In isoscaling, the collocation defect constraints are scaled in the exact same way as their corresponding states. If $x$ is a state to be scaled with ref value $\text{ref}_x$, then the defect constraints for $x$ are to be scaled with a single $\text{defect\_ref}_x$ given by
+\begin{equation*}
+    \text{defect\_ref}_x = \text{ref}_x
+\end{equation*}
+
+\addcontentsline{toc}{subsection}{Jacobian Rows Normalization}
+\subsection*{Jacobian Rows Normalization}
+
+\addcontentsline{toc}{subsection}{Projected Jacobian Rows Normalization}
+\subsection*{Projected Jacobian Rows Normalization}
+
+\addcontentsline{toc}{subsection}{Costate Balancing}
+\subsection*{Costate Balancing}
+
+\newpage
+\addcontentsline{toc}{section}{References, Resources, External Links}
+\section*{References, Resources, External Links}
+
+\newpage
+\addcontentsline{toc}{section}{FAQ}
+\section*{FAQ}
+
+\end{document}
