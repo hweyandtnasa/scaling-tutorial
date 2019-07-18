@@ -22,7 +22,7 @@
 
 The problem transformation applied in the act of problem scaling is called a \textbf{problem scaling transformation}. The individual transformations applied to the problem variables during scaling are called \textbf{variable scaling transformations}, and the act of applying those is called \textbf{variable scaling}---or just \textbf{scaling}, when understood to be with respect to variables, not an entire problem. Scaling transformations of problems and variables can simply be called \textbf{scaling transformations} when the context is clear. The inverses of scaling transformations, when they are available, are called \textbf{descaling transformations}, and applying such transformations to a scaled problem or its variables is called \textbf{descaling}.
 
-In the context of scaling one problem $P$ into a new problem $\hat{P}$, the original problem $P$ is called the \textbf{unscaled problem} while the new problem $\hat{P}$ is called the \textbf{scaled problem}. The variables of these problems are then dubbed ``unscaled'' and ``scaled'', respectively.
+In the context of scaling one problem $P$ into a new problem $\hat{P}$, the original problem $P$ is called the \textbf{unscaled problem} while the new problem $\hat{P}$ is called the \textbf{scaled problem}. The variables of these problems are then dubbed ``unscaled'' (a.k.a. ``physical'') and ``scaled'', respectively.
 \\
 
 \noindent
@@ -44,8 +44,8 @@ In summary, scaling provides an \textit{indirect} method for solving optimizatio
 \noindent
 The nice thing is that OpenMDAO does all of this automatically! All you need to do is tell it what scaling transformation to apply. This you do by specifying units, if desired, and setting reference values. (See Section ?? for details.)
 
-\addcontentsline{toc}{subsection}{Scaling transformations}
-\subsection*{Scaling Transformations}
+\addcontentsline{toc}{subsection}{The common scaling transformations}
+\subsection*{The common scaling transformations}
 
 Recall that a problem scaling transformation $S$ transforms a problem $P$ into a new problem $\hat{P}$:
 \begin{align*}
@@ -58,7 +58,7 @@ It does this by applying a set of variable scaling transformations to the variab
 If a variable $v$ is untouched by $S$, then $S_v$ is simply the identity transformation, so that $\hat{v} = S_v(v) = v$. \\
 
 \noindent
-While scaling transformations are defined above in a very general sense, specific types of transformations are most commonly used. The most significant and commonplace types are "linear" and "affine", as described below. \\
+While scaling transformations are defined above in a very general sense, specific types of transformations are most commonly used. The most significant and commonplace types are ``linear'' and ``affine'', as described below. \\
 
 \noindent \textit{Linear Scaling} \\
 
@@ -79,7 +79,7 @@ The majority of unit changes encountered in scientific work are linear scaling t
 \noindent \textit{Affine Scaling} \\
 
 \noindent
-Generalizing linear scaling to include possible "shifts" in variables leads to the notion of affine scaling. $S$ is called \textbf{affine} (pronounced "ay-fine") if the variable transformations it defines are all affine maps---that is, if
+Generalizing linear scaling to include possible ``shifts'' in variables leads to the notion of affine scaling. $S$ is called \textbf{affine} (pronounced ``ay-fine'') if the variable transformations it defines are all affine maps---that is, if
 \begin{align*}
     \hat{v} = S_v(v) = \alpha_v v + \beta_v
 \end{align*}
@@ -94,37 +94,75 @@ Some unit conversions require affine transformations. For instance, converting a
 \noindent
 More will be said about linear and affine scaling later, since those are the types of transformations that the OpenMDAO user interface currently supports. (See Section ?? for details.)
 
-\addcontentsline{toc}{subsection}{Rules of thumb}
-\subsection*{Rules of thumb}
+\addcontentsline{toc}{subsection}{Rules of thumb and words of warning}
+\subsection*{Rules of thumb and words of warning}
 
 How do you know when a problem is poorly-scaled? How do you know that scaling the
 problem can yield sufficiently significant convergence benefits? And how do you know what scaling transformations to use to reap those benefits? These are all very difficult, nuanced questions to answer precisely, and various aspects of these questions are still open areas of study, but nonetheless a few rules of thumb have been observed to work well in most instances.
 
-\addcontentsline{toc}{subsection}{Words of warning}
-\subsection*{Words of warning}
-
 \newpage
 \section{Scaling in OpenMDAO}
 
-\addcontentsline{toc}{subsection}{Reference values}
-\subsection*{Reference values}
+The OpenMDAO user interface provides support for linear and affine scaling, both \textit{indirectly} by allowing users to specify units for variables of interest, and \textit{directly} via either \texttt{scaler}/\texttt{adder} or \texttt{ref}/\texttt{ref0} keyword argument assignments. \\
 
-Let $x$ be some scalar variable or constraint that we want to scale to $\hat{x}$. The OpenMDAO user interface supports transformations of the form
+\noindent
+\textbf{Warning:} As of OpenMDAO V2, the \texttt{scaler}/\texttt{adder} interface for direct scaling is deprecated, so use \texttt{ref}/\texttt{ref0} instead! The following discussions of \texttt{scaler} and \texttt{adder} are only made to explain how to interpret the older programs that use them.
+
+\addcontentsline{toc}{subsection}{Scalers and adders (deprecated)}
+\subsection*{Scalers and adders (deprecated)}
+
+To scale a variable this way, you must specify a \texttt{scaler} and an \texttt{adder}. How do these values translate to an affine scaling transformation? Well, if $x$ is the unscaled variable, then its scaled counterpart $\hat{x}$ is given by
 \begin{align*}
-    \hat{x} = a x + b
+    \hat{x} = \texttt{scaler} \cdot (x + \texttt{adder})
 \end{align*}
-where $a,b$ are scalars specified prior to problem \texttt{setup()}. Thus, to scale a quantity in OpenMDAO, the two values $a,b$ must somehow be specified prior to problem \texttt{setup()}.
+This means that, in terms of an affine transformation, \texttt{scaler} is the constant multiplier and $\texttt{scaler} \cdot \texttt{adder}$ is the constant shift term. \\
 
-There are two ways of doing this, one of which is deprecated. The deprecated method, which should \textit{not} be used and is maintained only for backwards compatibility purposes, is specifying a \texttt{scaler} and an \texttt{adder} for the quantity of interest. The other method, which should be used, is specifying \textit{reference values} \texttt{ref} and \texttt{ref0} for the quantity.
+\noindent
+Where are \texttt{scaler} and \texttt{adder} set exactly, for a variable of interest? [\textbf{TODO}].
 
-The \texttt{ref} value for a variable is defined to be the value that scales to 1, and the \texttt{ref0} value is that which scales to 0.
+\addcontentsline{toc}{subsection}{Reference values for variables and residuals}
+\subsection*{Reference values for variables and residuals}
 
+The preferred way to directly scale variables is through reference values. Most variables defined in OpenMDAO are associated with at least two types of reference values: \texttt{ref} and \texttt{ref0}. \\
+
+\noindent
+The \texttt{ref} value for a variable is defined to be the value that scales to 1, and the \texttt{ref0} value is that which scales to 0. Symbolically,
+\begin{align*}
+    \texttt{ref} &\mapsto 1 \\
+    \texttt{ref0} &\mapsto 0
+\end{align*}
+Hence the scaling transformation from the corresponding variable $x$ to $\hat{x}$ is precisely
+\begin{align}
+    \hat{x} = \frac{x - \texttt{ref0}}{\texttt{ref} - \texttt{ref0}} \label{eq:ref_scale}
+\end{align}
+This means that, in terms of an affine transformation, the constant multiplier is $\frac{1}{\texttt{ref} - \texttt{ref0}}$ and the constant shift term is $-\frac{\texttt{ref0}}{\texttt{ref} - \texttt{ref0}}$. \\
+
+\noindent
+Note that, given variable $x$, if $x^U$ denotes an upper bound of $x$ and $x^L$ denotes a lower bound of $x$, then the domain interval $[x^L,x^U]$ is transformed as follows:
+\begin{align*}
+    [x^L,x^U] &\mapsto [\hat{x}^L,\hat{x}^U] \\
+    &= \Big[\frac{x^L-\texttt{ref0}}{\texttt{ref}-\texttt{ref0}},\frac{x^U-\texttt{ref0}}{\texttt{ref}-\texttt{ref0}}\Big] \\
+\end{align*}
+
+\noindent
+\textbf{Problem:} Find \texttt{ref},\texttt{ref0} such that the resulting scaling transformation maps the physical domain interval $[a,b]$ maps to the interval $[\hat{a},\hat{b}]$. \\
+
+\noindent
+\textbf{Solution:} Equation~\eqref{eq:ref_scale} gives $\hat{a},\hat{b}$ in terms of $a,b,\texttt{ref},\texttt{ref0}$, and solving the resulting linear system for \texttt{ref},\texttt{ref0} yields
+\begin{align*}
+    \texttt{ref} &= \frac{1-\hat{b}}{\hat{a}-\hat{b}}a + \frac{\hat{a}-1}{\hat{a}-\hat{b}}b \\
+    \texttt{ref0} &= -\frac{\hat{b}}{\hat{a}-\hat{b}}a + \frac{\hat{a}}{\hat{a}-\hat{b}}b
+\end{align*}
+Note that \texttt{ref},\texttt{ref0} are simply linear combinations of the physical bounds whose coefficients are determined by the scaled bounds.
 
 \addcontentsline{toc}{subsection}{Examples}
 \subsection*{Examples}
 
 \addcontentsline{toc}{subsection}{Under the hood}
 \subsection*{Under the hood}
+
+\noindent
+Values for \texttt{ref}/\texttt{ref0}, if they are set, override values for \texttt{scaler}/\texttt{adder}.
 
 \newpage
 \section{Scaling in Dymos}
@@ -161,6 +199,10 @@ The \texttt{ref} value for a variable is defined to be the value that scales to 
 \newpage
 \addcontentsline{toc}{section}{References, Resources, External Links}
 \section*{References, Resources, External Links}
+
+\newpage
+\addcontentsline{toc}{section}{Equations Cheatsheet}
+\section*{Equations Cheatsheet}
 
 \newpage
 \addcontentsline{toc}{section}{FAQ}
