@@ -112,9 +112,9 @@ The OpenMDAO user interface provides support for linear and affine scaling, both
 \subsection*{Scalers and adders (deprecated)}
 
 To scale a variable this way, you must specify a \texttt{scaler} and an \texttt{adder}. How do these values translate to an affine scaling transformation? Well, if $x$ is the unscaled variable, then its scaled counterpart $\hat{x}$ is given by
-\begin{align*}
-    \hat{x} = \texttt{scaler} \cdot (x + \texttt{adder})
-\end{align*}
+\begin{align}
+    \hat{x} = \texttt{scaler} \cdot (x + \texttt{adder}) \label{eq:scaler_adder_trans}
+\end{align}
 This means that, in terms of an affine transformation, \texttt{scaler} is the constant multiplier and $\texttt{scaler} \cdot \texttt{adder}$ is the constant shift term. \\
 
 \noindent
@@ -143,7 +143,7 @@ Note that, given variable $x$, if $x^U$ denotes an upper bound of $x$ and $x^L$ 
     [x^L,x^U] &\mapsto [\hat{x}^L,\hat{x}^U] \\
     &= \Big[\frac{x^L-\texttt{ref0}}{\texttt{ref}-\texttt{ref0}},\frac{x^U-\texttt{ref0}}{\texttt{ref}-\texttt{ref0}}\Big] \\
 \end{align*}
-
+\\ \\
 \noindent
 \textbf{Problem:} Find \texttt{ref},\texttt{ref0} such that the resulting scaling transformation maps the physical domain interval $[a,b]$ maps to the interval $[\hat{a},\hat{b}]$. \\
 
@@ -153,7 +153,22 @@ Note that, given variable $x$, if $x^U$ denotes an upper bound of $x$ and $x^L$ 
     \texttt{ref} &= \frac{1-\hat{b}}{\hat{a}-\hat{b}}a + \frac{\hat{a}-1}{\hat{a}-\hat{b}}b \\
     \texttt{ref0} &= -\frac{\hat{b}}{\hat{a}-\hat{b}}a + \frac{\hat{a}}{\hat{a}-\hat{b}}b
 \end{align*}
-Note that \texttt{ref},\texttt{ref0} are simply linear combinations of the physical bounds whose coefficients are determined by the scaled bounds.
+Note that \texttt{ref},\texttt{ref0} are simply linear combinations of the physical bounds whose coefficients are determined by the scaled bounds. \\
+\\ \\
+\noindent
+\textbf{Problem:} Given \texttt{scaler} and \texttt{adder}, compute \texttt{ref} and \texttt{ref0}. \\
+
+\noindent
+\textbf{Solution:} Since \texttt{ref} is defined as the physical value that scales to 1, and \texttt{ref0} is defined as the physical value that scales to 0, Equation~\eqref{eq:scaler_adder_trans} gives equations that can be solved for \texttt{ref} and \texttt{ref0} to yield the following identities:
+\begin{align*}
+    \texttt{ref} &= \frac{1}{\texttt{scaler}} - \texttt{adder} \\
+    \texttt{ref0} &= -\texttt{adder}
+\end{align*}
+If instead \texttt{scaler} and \texttt{adder} were desired from \texttt{ref} and \texttt{ref0}, the above equations would form a linear system that could be solved for those values to yield the following inverse identities:
+\begin{align*}
+    \texttt{scaler} &= \frac{1}{\texttt{ref} - \texttt{ref0}} \\
+    \texttt{adder} &= -\texttt{ref0}
+\end{align*}
 
 \addcontentsline{toc}{subsection}{Examples}
 \subsection*{Examples}
